@@ -295,12 +295,6 @@ class Valve(object):
                 self.valve_in_match(eth_dst=bpdu_mac),
                 priority=self.dp.highest_priority))
 
-        # drop LLDP
-        ofmsgs.append(self.valve_flowdrop(
-            self.dp.vlan_table,
-            self.valve_in_match(eth_type=ether.ETH_TYPE_LLDP),
-            priority=self.dp.highest_priority))
-
         # drop broadcast sources
         ofmsgs.append(self.valve_flowdrop(
             self.dp.vlan_table,
@@ -323,6 +317,15 @@ class Valve(object):
             priority=self.dp.low_priority,
             inst=[self.goto_table(self.dp.eth_dst_table)])]
 
+    def add_lldp_controller_flow(self):
+        """Add a flow for LLDP packets to be sent to the controller from the
+           VLAN table. This ensures that LLDP packets do not get mistakenly
+           tagged with a VLAN."""
+        return [self.valve_flowcontroller(
+            self.dp.vlan_table,
+            self.valve_in_match(eth_type=ether.ETH_TYPE_LLDP),
+            priority=self.dp.highest_priority)]
+
     def add_default_flows(self):
         """Configure datapath with necessary default tables and rules."""
         ofmsgs = []
@@ -330,6 +333,7 @@ class Valve(object):
         ofmsgs.extend(self.add_default_drop_flows())
         ofmsgs.extend(self.add_vlan_flood_flow())
         ofmsgs.extend(self.add_controller_learn_flow())
+        ofmsgs.extend(self.add_lldp_controller_flow())
         return ofmsgs
 
     def add_ports_and_vlans(self, discovered_port_nums):
